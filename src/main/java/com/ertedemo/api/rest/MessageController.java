@@ -48,7 +48,7 @@ public class MessageController {
 
             return ResponseEntity.ok("Message added successfully.");
         }
-        return ResponseEntity.badRequest().body("error to added message");
+        return ResponseEntity.badRequest().body("Error to added message");
     }
 
 
