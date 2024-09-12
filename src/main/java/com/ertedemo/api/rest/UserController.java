@@ -50,15 +50,7 @@ public class UserController {
         }
     }
 
-    @PutMapping()
-    public ResponseEntity<UserResponse> updateUser(@RequestBody UpdateUserResource resource) {
-        Optional<User>user = userService.getById(resource.getId());
-        if(user.isEmpty()){
-            return ResponseEntity.badRequest().build();
-        }
-        user.get().updateUser(resource);
-        return ResponseEntity.ok(new UserResponse(userService.update(user.get()).get()));
-    }
+    
 
     @DeleteMapping("{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
