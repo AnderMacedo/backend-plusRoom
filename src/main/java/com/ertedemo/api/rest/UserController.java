@@ -6,6 +6,7 @@ import com.ertedemo.api.resource.users.UpdateUserResource;
 import com.ertedemo.api.resource.users.UserResponse;
 import com.ertedemo.domain.model.entites.User;
 import com.ertedemo.domain.services.UserService;
+import com.ertedemo.shared.response.BaseResponse;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,66 +25,91 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public List<UserResponse> getAllUsers() {
-
+    public ResponseEntity<BaseResponse<UserResponse>> getAllUsers() {
         List<UserResponse> responseList = userService.getAll().stream()
-                .map(user ->  new UserResponse(user))
+                .map(user -> new UserResponse(user))
                 .collect(Collectors.toList());
 
-        return responseList;
+        BaseResponse<UserResponse> response = new BaseResponse<>(responseList, null, null, false);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("{userId}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long userId) {
+    public ResponseEntity<BaseResponse<UserResponse>> getUserById(@PathVariable Long userId) {
         Optional<User> user = userService.getById(userId);
-        return ResponseEntity.ok(new UserResponse(user.get()));
+        if (user.isPresent()) {
+            BaseResponse<UserResponse> response = new BaseResponse<>(new UserResponse(user.get()), null, null, false);
+            return ResponseEntity.ok(response);
+        } else {
+            BaseResponse<UserResponse> response = new BaseResponse<>(null, "404", "User not found", true);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
     }
 
     @PostMapping
-    public ResponseEntity<Long> createUser(@RequestBody CreateUserResource resource) {
+    public ResponseEntity<BaseResponse<Long>> createUser(@RequestBody CreateUserResource resource) {
         Optional<User> user = userService.create(new User(resource));
 
         if (user.isPresent()) {
-            return ResponseEntity.status(HttpStatus.CREATED).body(user.get().getId());
+            BaseResponse<Long> response = new BaseResponse<>(user.get().getId(), null, null, false);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } else {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            BaseResponse<Long> response = new BaseResponse<>(null, "500", "Internal Server Error", true);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
     @PutMapping()
-    public ResponseEntity<UserResponse> updateUser(@RequestBody UpdateUserResource resource) {
-        Optional<User>user = userService.getById(resource.getId());
-        if(user.isEmpty()){
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<BaseResponse<UserResponse>> updateUser(@RequestBody UpdateUserResource resource) {
+        Optional<User> user = userService.getById(resource.getId());
+
+        if (user.isEmpty()) {
+            BaseResponse<UserResponse> response = new BaseResponse<>(null, "400", "Invalid user ID", true);
+            return ResponseEntity.badRequest().body(response);
         }
+
         user.get().updateUser(resource);
-        return ResponseEntity.ok(new UserResponse(userService.update(user.get()).get()));
+        User updatedUser = userService.update(user.get()).get();
+        BaseResponse<UserResponse> response = new BaseResponse<>(new UserResponse(updatedUser), null, null, false);
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("{userId}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
-        return userService.delete(userId);
+    public ResponseEntity<BaseResponse<Void>> deleteUser(@PathVariable Long userId) {
+        ResponseEntity<?> result = userService.delete(userId);
+        if (result.getStatusCode() == HttpStatus.OK) {
+            BaseResponse<Void> response = new BaseResponse<>(null, null, null, false);
+            return ResponseEntity.ok(response);
+        } else {
+            BaseResponse<Void> response = new BaseResponse<>(null, "404", "User not found", true);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
     }
 
-
-    //EXTRA METHODOS
     @PutMapping("/rate-user/{userId}/{rate}")
-    public ResponseEntity<UserResponse> rateUser(@PathVariable Long userId, @PathVariable Float rate) {
+    public ResponseEntity<BaseResponse<UserResponse>> rateUser(@PathVariable Long userId, @PathVariable Float rate) {
         Optional<User> user = userService.getById(userId);
         if (rate < 0 || rate > 5 || user.isEmpty()) {
-            throw new IllegalArgumentException("The rating must be in the range of 0 to 5, or user not found");
+            BaseResponse<UserResponse> response = new BaseResponse<>(null, "400", "Invalid rating or user ID", true);
+            return ResponseEntity.badRequest().body(response);
         }
-        user.get().setRankPoints(rate);
-        Optional<User> userUpdate = userService.update(user.get());
 
-        return ResponseEntity.ok(new UserResponse(userUpdate.get()));
+        user.get().setRankPoints(rate);
+        Optional<User> updatedUser = userService.update(user.get());
+
+        BaseResponse<UserResponse> response = new BaseResponse<>(new UserResponse(updatedUser.get()), null, null, false);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Long> login(@RequestBody LoginCredential loginCredential) {
-
-        return
-                ResponseEntity.ok(
-                userService.login(loginCredential.getEmail(), loginCredential.getPassword()));
+    public ResponseEntity<BaseResponse<Long>> login(@RequestBody LoginCredential loginCredential) {
+        Long userId = userService.login(loginCredential.getEmail(), loginCredential.getPassword());
+        if (userId != null) {
+            BaseResponse<Long> response = new BaseResponse<>(userId, null, null, false);
+            return ResponseEntity.ok(response);
+        } else {
+            BaseResponse<Long> response = new BaseResponse<>(null, "401", "Invalid login credentials", true);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
     }
 }
