@@ -11,6 +11,11 @@ public class BaseResponse<T> {
 
     public BaseResponse() {}
 
+    public BaseResponse(T objectResult) {
+        this.objectResult = objectResult;
+        this.isError = false;
+    }
+
     public BaseResponse(T objectResult, String errorCode, String errorMessage, boolean isError) {
         this.objectResult = objectResult;
         this.errorCode = errorCode;
